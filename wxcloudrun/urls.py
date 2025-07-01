@@ -18,9 +18,12 @@ from wxcloudrun import views
 from django.conf.urls import url
 
 urlpatterns = (
-    # 计数器接口
-    url(r'^^api/count(/)?$', views.counter),
+    # 微信消息接口（新增）
+    url(r'^wechat(/)?$', views.wechat_handler),
 
-    # 获取主页
+    # 计数器接口（保持不变）
+    url(r'^api/count(/)?$', views.counter),
+
+    # 获取主页（保持不变）
     url(r'(/)?$', views.index),
 )

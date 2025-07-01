@@ -89,3 +89,67 @@ def update_count(request):
     else:
         return JsonResponse({'code': -1, 'errorMsg': 'action参数错误'},
                     json_dumps_params={'ensure_ascii': False})
+
+
+import json
+import logging
+import time
+import xml.etree.ElementTree as ET
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render
+from django.views.decorators.csrf import csrf_exempt
+from wxcloudrun.models import Counters
+
+# 微信消息Token（需与公众号配置一致）
+WECHAT_TOKEN = 'test_233'  # 替换为你的Token
+
+
+# 新增微信消息处理视图
+@csrf_exempt
+def wechat_handler(request):
+    if request.method == 'GET':
+        # 微信服务器验证
+        signature = request.GET.get('signature', '')
+        timestamp = request.GET.get('timestamp', '')
+        nonce = request.GET.get('nonce', '')
+        echostr = request.GET.get('echostr', '')
+
+        # 实际开发中应该验证签名（此处简化）
+        if signature and WECHAT_TOKEN:
+            return HttpResponse(echostr)
+        return HttpResponse('验证失败', status=403)
+
+    elif request.method == 'POST':
+        # 处理微信推送的消息
+        try:
+            xml_data = request.body.decode('utf-8')
+            logger.info(f"收到微信消息:\n{xml_data}")
+
+            root = ET.fromstring(xml_data)
+            msg_type = root.find('MsgType').text
+            from_user = root.find('FromUserName').text
+            to_user = root.find('ToUserName').text
+
+            # 处理文本消息
+            if msg_type == 'text':
+                content = root.find('Content').text
+                logger.info(f"用户 {from_user} 发送文本: {content}")
+
+                # 构造回复（可选）
+                reply = f"""
+                <xml>
+                    <ToUserName><![CDATA[{from_user}]]></ToUserName>
+                    <FromUserName><![CDATA[{to_user}]]></FromUserName>
+                    <CreateTime>{int(time.time())}</CreateTime>
+                    <MsgType><![CDATA[text]]></MsgType>
+                    <Content><![CDATA[已收到: {content}]]></Content>
+                </xml>
+                """
+                return HttpResponse(reply, content_type='application/xml')
+
+            # 其他消息类型处理（可选）
+            return HttpResponse('success', content_type='text/plain')
+
+        except Exception as e:
+            logger.error(f"处理微信消息出错: {str(e)}")
+            return HttpResponse('', status=500)
